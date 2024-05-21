@@ -1,0 +1,441 @@
+CREATE DATABASE if not exists ShoppAzone1;
+use ShoppAzone1;
+
+
+-- Create Administrator table
+CREATE TABLE Admin (
+    AdminID INT PRIMARY KEY,
+    Password VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE Customer (
+    CustomerID INT PRIMARY KEY,
+    FirstName VARCHAR(100) NOT NULL,
+    LastName VARCHAR(100) NOT NULL,
+    Password VARCHAR(255) NOT NULL,
+    EmailAddress VARCHAR(255) NOT NULL,
+    Phone VARCHAR(20) CHECK (LENGTH(Phone) >= 10),
+    DateOfBirth DATE, 
+    AddressLine VARCHAR(255) NOT NULL, -- Consolidated into one AddressLine field
+    City VARCHAR(100) NOT NULL,
+    State VARCHAR(100) NOT NULL,
+    PostalCode VARCHAR(20) NOT NULL,
+    CONSTRAINT UC_Email UNIQUE (EmailAddress),
+	CONSTRAINT CHK_Address_Length CHECK (LENGTH(AddressLine) <= 255),
+	CONSTRAINT CHK_City_Length CHECK (LENGTH(City) <= 100),
+	CONSTRAINT CHK_State_Length CHECK (LENGTH(State) <= 100),
+	CONSTRAINT CHK_PostalCode_Length CHECK (LENGTH(PostalCode) <= 20)
+);
+
+
+
+
+
+CREATE TABLE DeliveryAgent (
+    AgentID INT PRIMARY KEY,
+    FirstName VARCHAR(100) NOT NULL,
+    LastName VARCHAR(100) NOT NULL,
+    Password VARCHAR(255) NOT NULL,
+    PhoneNumber VARCHAR(20) NOT NULL
+    CONSTRAINT CHK_Phone_Length CHECK (LENGTH(PhoneNumber) >= 10) -- Check constraint to ensure phone number length is at least 10 characters
+);
+
+
+CREATE TABLE ShopOwner (
+    OwnerID INT PRIMARY KEY,
+    FirstName VARCHAR(100) NOT NULL,
+    LastName VARCHAR(100) NOT NULL,
+    PinCode VARCHAR(10) NOT NULL,
+    StreetName VARCHAR(255) NOT NULL,
+    City VARCHAR(100) NOT NULL,
+    State VARCHAR(100) NOT NULL,
+    Password VARCHAR(255) NOT NULL,
+    PhoneNumber VARCHAR(20) NOT NULL,
+    CONSTRAINT CHK_Phone_Length_ShopOwner CHECK (LENGTH(PhoneNumber) >= 10),
+    CONSTRAINT CHK_Password_Length_ShopOwner CHECK (LENGTH(Password) >= 8),
+    CONSTRAINT CHK_PinCode_Length CHECK (LENGTH(PinCode) = 6) -- Check constraint to ensure PinCode length is 6 
+);
+
+
+
+CREATE TABLE Product (
+    ProductID INT AUTO_INCREMENT PRIMARY KEY,
+    ProductName VARCHAR(255) NOT NULL,
+    Description TEXT,
+    StockAvailability INT NOT NULL,
+    OwnerID INT NOT NULL,  -- Adding OwnerID attribute
+    FOREIGN KEY (OwnerID) REFERENCES ShopOwner(OwnerID), -- Adding foreign key constraint
+    CONSTRAINT CHK_StockAvailability CHECK (StockAvailability >= 0) -- Check constraint to ensure StockAvailability is non-negative
+);
+
+
+CREATE TABLE Orders (
+    OrderID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    CustomerID INT NOT NULL,
+    ProductID INT NOT NULL,
+    OrderStatus VARCHAR(50),
+    OrderAmount DECIMAL(10, 2) NOT NULL, -- Changed OrderAmount to DECIMAL for monetary values
+    OrderDate DATE,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE CASCADE, 
+    FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE,
+    CONSTRAINT CHK_OrderAmount CHECK (OrderAmount > 0) -- Check constraint to ensure OrderAmount is positive
+);
+
+
+CREATE TABLE ProductReview (
+    ReviewID INT PRIMARY KEY NOT NULL ,
+    ProductID INT NOT NULL,
+    CustomerID INT NOT NULL,
+    Comment TEXT,
+    Rating INT NOT NULL CHECK (Rating >= 1 AND Rating <= 5),
+    ReviewDate DATE NOT NULL,
+    FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID)
+);
+
+
+CREATE TABLE AgentReview (
+    ReviewID INT AUTO_INCREMENT PRIMARY KEY , 
+    AgentID INT NOT NULL,
+    CustomerID INT NOT NULL,
+    Comment TEXT,
+    Rating INT NOT NULL CHECK (Rating >= 1 AND Rating <= 5),
+    ReviewDate DATE NOT NULL,
+    FOREIGN KEY (AgentID) REFERENCES DeliveryAgent(AgentID) ,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ,
+    CONSTRAINT CHK_AgentReview_Length CHECK (LENGTH(Comment) <= 1000) -- Check constraint to limit the length of the comment
+);
+
+CREATE TABLE AgentPhone (
+    AgentPhoneID INT AUTO_INCREMENT PRIMARY KEY,
+    AgentID INT NOT NULL,
+    PhoneNumber VARCHAR(20) NOT NULL,
+    CONSTRAINT FK_AgentPhone_AgentID FOREIGN KEY (AgentID) REFERENCES DeliveryAgent(AgentID) ON DELETE CASCADE,
+    CONSTRAINT CHK_Phone_Length_AgentPhone CHECK (LENGTH(PhoneNumber) >= 10) -- Check constraint to ensure phone number length is at least 10 characters
+);
+
+
+CREATE TABLE OwnerPhone (
+    OwnerPhoneID INT AUTO_INCREMENT PRIMARY KEY,
+    OwnerID INT NOT NULL,
+    PhoneNumber VARCHAR(20) NOT NULL,
+    CONSTRAINT FK_OwnerPhone_OwnerID FOREIGN KEY (OwnerID) REFERENCES ShopOwner(OwnerID) ON DELETE CASCADE,
+    CONSTRAINT CHK_Phone_Length_OwnerPhone CHECK (LENGTH(PhoneNumber) >= 10) -- Check constraint to ensure phone number length is at least 10 characters
+);
+
+CREATE TABLE DeliversTo (
+    DeliveryAgentID INT NOT NULL,
+    CustomerID INT NOT NULL,
+    PRIMARY KEY (DeliveryAgentID, CustomerID),
+    FOREIGN KEY (DeliveryAgentID) REFERENCES DeliveryAgent(AgentID) ON DELETE CASCADE,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE CASCADE
+);
+
+
+CREATE TABLE Cart (
+    CartID INT AUTO_INCREMENT PRIMARY KEY,
+    CustomerID INT NOT NULL,
+    ProductID INT NOT NULL,
+    TotalPrice DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE CASCADE,
+    FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE,
+    CONSTRAINT CHK_TotalPrice CHECK (TotalPrice > 0) -- Check constraint to ensure TotalPrice is positive
+);
+
+CREATE TABLE CartItems (
+    CartItemID INT AUTO_INCREMENT PRIMARY KEY,
+    CustomerID INT NOT NULL,
+    ProductID INT NOT NULL,
+    Quantity INT NOT NULL,
+    CONSTRAINT FK_CartItems_CustomerID FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE CASCADE,
+    CONSTRAINT FK_CartItems_ProductID FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE,
+    CONSTRAINT CHK_Quantity CHECK (Quantity > 0) -- Check constraint to ensure Quantity is positive
+);
+
+
+CREATE TABLE Wishlist (
+    WishID INT PRIMARY KEY,
+    CustomerID INT NOT NULL,
+    ProductID INT NOT NULL,
+    TotalPrice DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE CASCADE,
+    FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE,
+    CONSTRAINT CHK_Wishlist_TotalPrice CHECK (TotalPrice > 0) -- Check constraint to ensure TotalPrice is positive
+);
+
+CREATE TABLE WishlistItems (
+    WishlistItemID INT AUTO_INCREMENT PRIMARY KEY,
+    CustomerID INT NOT NULL,
+    ProductID INT NOT NULL,
+    CONSTRAINT FK_WishlistItems_CustomerID FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ON DELETE CASCADE,
+    CONSTRAINT FK_WishlistItems_ProductID FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE
+);
+
+
+-- Create Offer table
+CREATE TABLE Offer (
+    OfferID INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+    DiscountPercent DECIMAL(5, 2) NOT NULL,
+    CouponCode VARCHAR(50) NOT NULL,
+    CONSTRAINT CHK_DiscountPercent CHECK (DiscountPercent > 0 AND DiscountPercent <= 100) -- Check constraint to ensure DiscountPercent is between 0 and 100
+);
+
+CREATE TABLE Sells (
+    SellID INT AUTO_INCREMENT PRIMARY KEY,
+    ProductID INT NOT NULL,
+    OwnerID INT NOT NULL,
+    CONSTRAINT FK_Sells_ProductID FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE,
+    CONSTRAINT FK_Sells_OwnerID FOREIGN KEY (OwnerID) REFERENCES ShopOwner(OwnerID) ON DELETE CASCADE
+);
+
+
+-- Create Catalogue table
+CREATE TABLE Catalogue (
+    CatalogueID INT AUTO_INCREMENT PRIMARY KEY,
+    Category VARCHAR(255) NOT NULL,
+    Description TEXT,
+    CONSTRAINT CHK_Category_Length CHECK (LENGTH(Category) <= 255) -- Check constraint to limit the length of the category
+);
+
+CREATE TABLE CatalogueProducts (
+    CatalogueProductID INT AUTO_INCREMENT PRIMARY KEY,
+    CatalogueID INT NOT NULL,
+    ProductID INT NOT NULL,
+    CONSTRAINT FK_CatalogueProducts_CatalogueID FOREIGN KEY (CatalogueID) REFERENCES Catalogue(CatalogueID) ON DELETE CASCADE,
+    CONSTRAINT FK_CatalogueProducts_ProductID FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE
+);
+
+
+CREATE TABLE OrderProducts (
+    OrderProductID INT AUTO_INCREMENT PRIMARY KEY,
+    OrderID INT NOT NULL,
+    ProductID INT NOT NULL,
+    Quantity INT NOT NULL,
+    CONSTRAINT FK_OrderProducts_OrderID FOREIGN KEY (OrderID) REFERENCES Orders(OrderID) ON DELETE CASCADE,
+    CONSTRAINT FK_OrderProducts_ProductID FOREIGN KEY (ProductID) REFERENCES Product(ProductID) ON DELETE CASCADE
+);
+
+
+
+-- Create Payment table
+CREATE TABLE Payment (
+    PaymentID INT AUTO_INCREMENT PRIMARY KEY,
+    PaymentDate DATE NOT NULL,
+    PaymentMethod VARCHAR(50) NOT NULL,
+    PaymentAmount DECIMAL(10, 2) NOT NULL,
+    CONSTRAINT CHK_PaymentAmount CHECK (PaymentAmount > 0) -- Check constraint to ensure PaymentAmount is positive
+);
+
+
+-- Create Wallet table
+CREATE TABLE Wallet (
+    WalletID INT AUTO_INCREMENT PRIMARY KEY,
+    CustomerID INT NOT NULL UNIQUE,
+    Balance DECIMAL(10, 2) NOT NULL,
+    PinCode VARCHAR(4) NOT NULL,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) 
+);
+
+
+-- Create OrderHistory table
+CREATE TABLE OrderHistory (
+    HistoryID INT AUTO_INCREMENT PRIMARY KEY,
+    CustomerID INT NOT NULL,
+    OrderID INT NOT NULL,
+    NumberOfOrders INT NOT NULL,
+    TotalAmount DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID) ,
+    FOREIGN KEY (OrderID) REFERENCES Orders(OrderID),
+    CONSTRAINT CHK_NumberOfOrders CHECK (NumberOfOrders > 0), -- Check constraint to ensure NumberOfOrders is positive
+    CONSTRAINT CHK_TotalAmount CHECK (TotalAmount > 0) -- Check constraint to ensure TotalAmount is positive
+);
+
+
+-- Insert sample data into Admin table
+INSERT INTO Admin (AdminID, Password) VALUES
+(322, 'admin12223');
+
+
+-- Insert sample data into Customer table
+INSERT INTO Customer (CustomerID, FirstName, LastName, Password, EmailAddress, Phone, DateOfBirth, AddressLine, City, State, PostalCode) VALUES
+(1, 'John', 'Doe', 'john123', 'john@example.com', '1234567890', '1990-05-15', '123 Main St', 'Anytown', 'AnyState', '12345'),
+(2, 'Jane', 'Smith', 'jane456', 'jane@example.com', '9876543210', '1985-09-20', '456 Elm St', 'Othercity', 'OtherState', '54321');
+
+-- Insert sample data into DeliveryAgent table
+INSERT INTO DeliveryAgent (AgentID, FirstName, LastName, Password, PhoneNumber) VALUES
+(1, 'Mike', 'Johnson', 'mikeagent', '5557779999'),
+(2, 'Emily', 'Brown', 'emilyagent', '1112223333');
+
+-- Insert sample data into ShopOwner table
+INSERT INTO ShopOwner (OwnerID, FirstName, LastName, PinCode, StreetName, City, State, Password, PhoneNumber) VALUES
+(1, 'David', 'Lee', '123456', '789 Oak St', 'Smalltown', 'SmallState', 'davidowner', '9998887777'),
+(2, 'Sarah', 'Taylor', '654321', '321 Maple St', 'Bigcity', 'BigState', 'sarahowner', '3334445555');
+
+-- Insert sample data into Product table
+INSERT INTO Product (ProductName, Description, StockAvailability, OwnerID) VALUES
+('Laptop', 'Brand new laptop with high performance.', 50, 1),
+('Smartphone', 'Latest model smartphone with advanced features.', 100, 2);
+
+-- Insert sample data into Orders table
+INSERT INTO Orders (CustomerID, ProductID, OrderStatus, OrderAmount, OrderDate) VALUES
+(1, 1, 'Pending', 1200.00, '2024-02-10'),
+(2, 2, 'Shipped', 899.99, '2024-02-11');
+
+-- Insert sample data into ProductReview table
+INSERT INTO ProductReview (ReviewID, ProductID, CustomerID, Comment, Rating, ReviewDate) VALUES
+(1, 1, 1, 'Great laptop, very fast and reliable!', 5, '2024-02-11'),
+(2, 2, 2, 'Love the smartphone, amazing camera!', 4, '2024-02-12');
+
+-- Insert sample data into AgentReview table
+INSERT INTO AgentReview (AgentID, CustomerID, Comment, Rating, ReviewDate) VALUES
+(1, 1, 'Excellent service, delivered on time!', 5, '2024-02-11'),
+(2, 2, 'Delivery was a bit late but overall good.', 4, '2024-02-12');
+
+-- Insert sample data into AgentPhone table
+INSERT INTO AgentPhone (AgentID, PhoneNumber) VALUES
+(1, '5557779999'),
+(2, '1112223333');
+
+-- Insert sample data into OwnerPhone table
+INSERT INTO OwnerPhone (OwnerID, PhoneNumber) VALUES
+(1, '9998887777'),
+(2, '3334445555');
+
+-- Insert sample data into DeliversTo table
+INSERT INTO DeliversTo (DeliveryAgentID, CustomerID) VALUES
+(1, 1),
+(2, 2);
+
+-- Insert sample data into Cart table
+INSERT INTO Cart (CustomerID, ProductID, TotalPrice) VALUES
+(1, 1, 1200.00),
+(2, 2, 899.99);
+
+-- Insert sample data into CartItems table
+INSERT INTO CartItems (CustomerID, ProductID, Quantity) VALUES
+(1, 1, 1),
+(2, 2, 1);
+
+-- Insert sample data into Wishlist table
+INSERT INTO Wishlist (WishID, CustomerID, ProductID, TotalPrice) VALUES
+(1, 1, 2, 899.99),
+(2, 2, 1, 1200.00);
+
+-- Insert sample data into WishlistItems table
+INSERT INTO WishlistItems (CustomerID, ProductID) VALUES
+(1, 2),
+(2, 1);
+
+-- Insert sample data into Offer table
+INSERT INTO Offer (DiscountPercent, CouponCode) VALUES
+(10.00, 'OFF10'),
+(20.00, 'OFF20');
+
+-- Insert sample data into Sells table
+INSERT INTO Sells (ProductID, OwnerID) VALUES
+(1, 1),
+(2, 2);
+
+-- Insert sample data into Catalogue table
+INSERT INTO Catalogue (Category, Description) VALUES
+('Electronics', 'Devices and gadgets'),
+('Clothing', 'Apparel and accessories');
+
+-- Insert sample data into CatalogueProducts table
+INSERT INTO CatalogueProducts (CatalogueID, ProductID) VALUES
+(1, 1),
+(2, 2);
+
+-- Insert sample data into OrderProducts table
+INSERT INTO OrderProducts (OrderID, ProductID, Quantity) VALUES
+(1, 1, 1),
+(2, 2, 1);
+
+-- Insert sample data into Payment table
+INSERT INTO Payment (PaymentDate, PaymentMethod, PaymentAmount) VALUES
+('2024-02-10', 'Credit Card', 1200.00),
+('2024-02-11', 'PayPal', 899.99);
+
+-- Insert sample data into Wallet table
+INSERT INTO Wallet (CustomerID, Balance, PinCode) VALUES
+(1, 1000.00, '1234'),
+(2, 1500.00, '5678');
+
+-- Insert sample data into OrderHistory table
+INSERT INTO OrderHistory (CustomerID, OrderID, NumberOfOrders, TotalAmount) VALUES
+(1, 1, 1, 1200.00),
+(2, 2, 1, 899.99);
+
+
+-- Print data from Admin table
+SELECT * FROM Admin;
+
+-- Print data from Customer table
+SELECT * FROM Customer;
+
+-- Print data from DeliveryAgent table
+SELECT * FROM DeliveryAgent;
+
+-- Print data from ShopOwner table
+SELECT * FROM ShopOwner;
+
+-- Print data from Product table
+SELECT * FROM Product;
+
+-- Print data from Orders table
+SELECT * FROM Orders;
+
+-- Print data from ProductReview table
+SELECT * FROM ProductReview;
+
+-- Print data from AgentReview table
+SELECT * FROM AgentReview;
+
+-- Print data from AgentPhone table
+SELECT * FROM AgentPhone;
+
+-- Print data from OwnerPhone table
+SELECT * FROM OwnerPhone;
+
+-- Print data from DeliversTo table
+SELECT * FROM DeliversTo;
+
+-- Print data from Cart table
+SELECT * FROM Cart;
+
+-- Print data from CartItems table
+SELECT * FROM CartItems;
+
+-- Print data from Wishlist table
+SELECT * FROM Wishlist;
+
+-- Print data from WishlistItems table
+SELECT * FROM WishlistItems;
+
+-- Print data from Offer table
+SELECT * FROM Offer;
+
+-- Print data from Sells table
+SELECT * FROM Sells;
+
+-- Print data from Catalogue table
+SELECT * FROM Catalogue;
+
+-- Print data from CatalogueProducts table
+SELECT * FROM CatalogueProducts;
+
+-- Print data from OrderProducts table
+SELECT * FROM OrderProducts;
+
+-- Print data from Payment table
+SELECT * FROM Payment;
+
+-- Print data from Wallet table
+SELECT * FROM Wallet;
+
+-- Print data from OrderHistory table
+SELECT * FROM OrderHistory;
+
+
+
